@@ -1,0 +1,22 @@
+{
+  "name": "sqs-simple",
+  "version": "1.0.0",
+  "description": "A simple SQS library that works",
+  "main": "lib/sqs.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jhford/sqs-simple.git"
+  },
+  "keywords": [
+    "sqs"
+  ],
+  "author": "John Ford <jhford@mozilla.com>",
+  "license": "MPL-2.0",
+  "bugs": {
+    "url": "https://github.com/jhford/sqs-simple/issues"
+  },
+  "homepage": "https://github.com/jhford/sqs-simple#readme"
+}
