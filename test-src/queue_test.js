@@ -82,7 +82,7 @@ describe('Queues', () => {
       // queue redirecting as well.  Half of working against AWS Apis feels
       // like trusting gut feelings about how it's not doing what you expect
       // :'(
-      qurl = await subject.initQueue(sqs, qname, 1);
+      qurl = await subject.initQueue({sqs, queueName: qname});
       debug('Waiting 65 seconds to allow the SQS API to catch up to itself');
       return new Promise(res => {
         setTimeout(() => { 

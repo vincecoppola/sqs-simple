@@ -41,6 +41,36 @@ function parseOptions(_opts, keys) {
   if (!opts.sqs && _.includes(keys, 'sqs')) {
     opts.sqs = new SQS(opts.SQSConfig);
   }
+
+  // If provided, a QueueUrl must be a valid URL
+  if (opts.queueUrl) {
+    let u = url.parse(opts.queueUrl);
+    if (!u.host || !u.protocol) {
+      throw new Error('Invalid QueueUrl provided');
+    }
+  }
+
+  // If provided, QueueName should be valid as should the deadQueueUrl
+  if (opts.queueName) {
+    if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(opts.queueName)) {
+      throw new Error('Invalid Queue Name: ' + opts.queueName);
+    }
+  }
+
+  // If we're caring about a dead letter queue, let's validate it
+  if (_.includes(keys, 'deadQueueName')) {
+    let deadQueueName = opts.queueName + opts.deadLetterSuffix;
+
+    if (!opts.queueName) {
+      throw new Error('Dead Letter Queue needs a basis');
+    }
+
+    if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(deadQueueName)) {
+      throw new Error('Invalid Dead-Letter Queue Name: ' + deadQueueName);
+    }
+  }
+
+
   if (opts.handler && _.includes(keys, 'handler') && typeof opts.handler !== 'function') {
     throw new Error('If provided, handler must be a promise-returning function');
   }
@@ -115,6 +145,14 @@ async function initQueue (opts) {
   const _debug = debug('queue:initQueue:' + opts.queueName);
 
   let deadQueueName = opts.queueName + opts.deadLetterSuffix;
+
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(opts.queueName)) {
+    throw new Error('Invalid Queue Name: ' + opts.queueName);
+  }
+
+  if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(deadQueueName)) {
+    throw new Error('Invalid Dead-Letter Queue Name: ' + deadQueueName);
+  }
 
   // We need to create the dead letter queue first because we need to query the ARN
   // of the queue so that we can set it when creating the main queue
@@ -462,6 +500,7 @@ class QueueListener extends EventEmitter {
         this.debug('error changing message %s visibility', msgId);
         this.debug(err);
         this.emit('error', err, 'api');
+        throw new Error('Failed to change timeout');
       }
     }
 
