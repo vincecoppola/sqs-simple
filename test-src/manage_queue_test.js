@@ -5,10 +5,10 @@ const url = require('url');
 
 describe('manage queues', () => {
   it('should create and empty a live and dead queue', async () => {
-    let result = await subject.initQueue({
-      sqs: sqs, 
-      queueName: 'manage_test',
-    });
+    let result = await subject.initQueue({sqs, queueName: 'manage_test'});
+
+    let qurl = await subject.getQueueUrl({sqs, queueName: 'manage_test'});
+    assume(qurl).equals(result.queueUrl);
 
     assume(result.queueUrl).matches("^https://sqs.us-west-2.amazonaws.com/[0-9]*/manage_test$");
     assume(result.deadQueueUrl).matches("^https://sqs.us-west-2.amazonaws.com/[0-9]*/manage_test_dead$");

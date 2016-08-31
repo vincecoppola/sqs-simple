@@ -227,6 +227,13 @@ main().catch(err => {
 });
 ```
 
+# More Reading
+If you're unsure about the properties of SQS Queues, check out this document
+that gives great information.  Where possible, I've tried to retain the SQS
+Api's naming for options.
+
+http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSConcepts.html
+
 # Hacking!
 Find something to hack on, hack on it, then submit a PR.  Issues should be
 tracked in Github Issues.
@@ -241,10 +248,10 @@ npm test
 
 There are a couple environment variables you probably should know about:
 
-`CONSTANT_QUEUE_NAME=1`
-`TEST_QUEUE_URL=https://sqs.us-west-2.amazonaws.com/<snip>/<snip>`
-`AWS_ACCESS_KEY_ID=<snip>`
-`AWS_SECRET_ACCESS_KEY=<snip>`
+* `CONSTANT_QUEUE_NAME=1`
+* `TEST_QUEUE_URL=https://sqs.us-west-2.amazonaws.com/<snip>/<snip>`
+* `AWS_ACCESS_KEY_ID=<snip>`
+* `AWS_SECRET_ACCESS_KEY=<snip>`
 
 The first two let you reuse a queue so you don't get the default behaviour of
 creating and deleting a bunch of queues.  This lets you run the unit tests
@@ -254,7 +261,7 @@ The last two are used by the upstream aws-sdk library if an SQS Client is not
 provided to set the authorization parameters correctly.
 
 ## TODO:
-- [ ] add function to get a QueueUrl from a QueueName.  This didn't matter when
+- [x] add function to get a QueueUrl from a QueueName.  This didn't matter when
   there was only a single class, but now that they're split into sender and
   listener it's a pain to set up the listener.  High priority
 - [ ] init/delete/purge queue should retry for up to 65s if the reason for

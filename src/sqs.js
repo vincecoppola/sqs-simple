@@ -191,6 +191,18 @@ async function initQueue (opts) {
 }
 
 /**
+ * Given a queueName, determine the queueUrl
+ */
+async function getQueueUrl(opts) {
+  opts = parseOptions(opts, ['sqs', 'queueName']);
+
+  return (await opts.sqs.getQueueUrl({
+    QueueName: opts.queueName,
+  }).promise()).QueueUrl;
+}
+
+
+/**
  * Use the correct API function to purge the queue of items.  This has the
  * unfortunate consequence of only being able to run once every 60 seconds on
  * the specified queue.
@@ -570,6 +582,7 @@ module.exports = {
   QueueSender,
   QueueListener,
   initQueue,
+  getQueueUrl,
   purgeQueue,
   emptyQueue,
   deleteQueue,
