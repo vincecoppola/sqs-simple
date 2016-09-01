@@ -46,6 +46,18 @@ This function returns an object in the following format:
 }
 ```
 
+## `async getQueueUrl(opts)`
+This function is used to determine a `QueueUrl` based only on the `QueueName`.
+It is useful when you want to create a `QueueListener` without having to run
+`initQueue`.
+
+The `opts` object should have the following keys:
+
+* `queueName`: Name of normal work queue.  This must be 80 characters or fewer
+  alphanumeric characters 
+* `sqs` (optional): Provide a custom SQS Client object.  If unspecified
+  the library will create its own SQS Client in `us-west-2` region
+
 ## `async deleteQueue(opts)`
 This function can be used to delete a queue.
 
