@@ -456,7 +456,12 @@ class QueueListener extends EventEmitter {
     try {
       await Promise.all(msgs.map(x => this.__handleMsg(x)));
     } catch (err) {
-      this.debug('This really should not happen... %j', err);
+      let error = new Error('__handleMsg is rejecting when it ought not to.  ' +
+                    'This is a programming error in QueueListener.__handleMsg()');
+      error.underlyingErr = err;
+      error.underlyingStack = err.stack || '';
+      this.debug('This really should not happen... %j', error);
+      this.emit('error', error, 'api');
     }
 
     if (this.running) {
