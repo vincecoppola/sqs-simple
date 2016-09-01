@@ -3,7 +3,7 @@ const sqs = require('./create-sqs-client');
 const subject = require('../lib/sqs');
 const url = require('url');
 
-describe('manage queues', () => {
+describe('Management', () => {
   it('should create and empty a live and dead queue', async () => {
     let result = await subject.initQueue({sqs, queueName: 'manage_test'});
 
