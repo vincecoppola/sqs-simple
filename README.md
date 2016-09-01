@@ -152,7 +152,7 @@ It has the following constructor options:
 ### Events
 
 * `starting`: Emitted with no arguments before the first poll of the API
-* `stopping`: Emitted when the last handler has completed
+* `stopped`: Emitted when the last handler has completed
 * `error`: Emitted when *any* error occurs.  It is passed two arguments.
   The first argument is the underlying `Error`.  The second argument is
   a string of value 'api', 'handler', or 'payload'.
