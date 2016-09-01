@@ -4,10 +4,10 @@
   "description": "A simple SQS library that works",
   "main": "lib/sqs.js",
   "scripts": {
-    "compile": "babel-compile -p taskcluster src:lib test-src:test",
+    "compile": "babel-compile -p taskcluster src:lib test:.test",
     "postinstall": "npm run compile",
     "pretest": "npm run compile",
-    "test": "mocha"
+    "test": "mocha .test/*_test.js"
   },
   "repository": {
     "type": "git",
