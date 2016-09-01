@@ -1,5 +1,5 @@
 # SQS Simple
-
+[![Build Status](https://travis-ci.org/jhford/sqs-simple.svg?branch=master)](https://travis-ci.org/jhford/sqs-simple)
 Install with
 ```sh
 npm i --save sqs-simple
