@@ -246,6 +246,40 @@ Api's naming for options.
 
 http://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/SQSConcepts.html
 
+# IAM Policy
+Here's a sample IAM Policy outline for what's should be granted to the user which you use this resource with to run SQS Simple
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "...",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:ChangeMessageVisibility",
+                "sqs:ChangeMessageVisibilityBatch",
+                "sqs:CreateQueue",
+                "sqs:DeleteMessage",
+                "sqs:DeleteMessageBatch",
+                "sqs:DeleteQueue",
+                "sqs:GetQueueAttributes",
+                "sqs:GetQueueUrl",
+                "sqs:ListDeadLetterSourceQueues",
+                "sqs:ListQueues",
+                "sqs:PurgeQueue",
+                "sqs:ReceiveMessage",
+                "sqs:SendMessage",
+                "sqs:SendMessageBatch",
+                "sqs:SetQueueAttributes"
+            ],
+            "Resource": [
+                "..."
+            ]
+        }
+    ]
+}
+```
+
 # Hacking!
 Find something to hack on, hack on it, then submit a PR.  Issues should be
 tracked in Github Issues.
