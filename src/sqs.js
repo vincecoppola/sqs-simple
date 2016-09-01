@@ -11,6 +11,7 @@ const SQS = require('aws-sdk').SQS;
  * The default internal version of the message payload
  */
 const MSG_VERSION = 1;
+const SQS_QUEUE_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
 
 const assert = require('assert');
 
@@ -52,7 +53,7 @@ function parseOptions(_opts, keys) {
 
   // If provided, QueueName should be valid as should the deadQueueUrl
   if (opts.queueName) {
-    if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(opts.queueName)) {
+    if (!SQS_QUEUE_NAME_PATTERN.exec(opts.queueName)) {
       throw new Error('Invalid Queue Name: ' + opts.queueName);
     }
   }
@@ -65,7 +66,7 @@ function parseOptions(_opts, keys) {
       throw new Error('Dead Letter Queue needs a basis');
     }
 
-    if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(deadQueueName)) {
+    if (!SQS_QUEUE_NAME_PATTERN.exec(deadQueueName)) {
       throw new Error('Invalid Dead-Letter Queue Name: ' + deadQueueName);
     }
   }
