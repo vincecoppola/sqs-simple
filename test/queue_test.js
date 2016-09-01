@@ -67,14 +67,23 @@ describe('Queues', () => {
   // While developing, it's really handy to have static names for the queues
   // used in testing.  For things like travis, let's generate a unique name for
   // the test.
-  if (!process.env.CONSTANT_QUEUE_NAME) {
+  if (process.env.CONSTANT_QUEUE_NAME) {
     qname = 'queue-tests-' + process.env.USER;
   } else {
     qname = 'queue-tests-' + slugid.nice().slice(0,7);
   }
 
   before(async () => {
-    if (!process.env.CONSTANT_QUEUE_NAME) {
+    if (process.env.CONSTANT_QUEUE_NAME) {
+      // If we're using constant queue name, we want to know what the URL for
+      // the Queues are.
+      // TODO: make this not suck
+      qurl = {
+        queueUrl: (process.env.TEST_QUEUE_URL || '').trim(),
+        deadQueueUrl: (process.env.TEST_QUEUE_URL || '').trim() + '_dead',
+      };
+      debug('NOTE: Skipping initQueue, assuming last Queue is still OK');
+    } else {
       // If we're using constant queue names, then we want to create the queue
       // and wait 65 seconds.  This 65s wait is because the API seems to use
       // 60s as sync timeout for the eventual consistency for queue operations
@@ -90,15 +99,6 @@ describe('Queues', () => {
           res();
         }, 65 * 1000);
       });
-    } else {
-      // If we're using constant queue name, we want to know what the URL for
-      // the Queues are.
-      // TODO: make this not suck
-      qurl = {
-        queueUrl: (process.env.TEST_QUEUE_URL || '').trim(),
-        deadQueueUrl: (process.env.TEST_QUEUE_URL || '').trim() + '_dead',
-      };
-      debug('NOTE: Skipping initQueue, assuming last Queue is still OK');
     }
   });
 
