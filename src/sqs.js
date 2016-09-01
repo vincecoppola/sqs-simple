@@ -312,9 +312,6 @@ class QueueSender {
     // We want to make sure that debugging output is somewhat useful, so we'll
     // include a little bit of info in each debug message.
     this.debug = debug('queue:QueueSender:' + url.parse(opts.queueUrl).pathname.slice(1));
-
-    // used to decide whether to launch another __receiveMsg() call
-    this.running = false;
   }
 
   /**
