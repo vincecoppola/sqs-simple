@@ -40,6 +40,7 @@ function parseOptions(_opts, keys) {
 
   // Create the SQS object if we don't have one but we want one.
   if (!opts.sqs && _.includes(keys, 'sqs')) {
+    assert(opts.sqsConfig.region, 'Must provide SQS Region');
     opts.sqs = new SQS(opts.sqsConfig);
   }
 
