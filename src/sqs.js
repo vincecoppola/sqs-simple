@@ -22,7 +22,7 @@ const EventEmitter = require('events');
  * user to specify which options they expect
  */
 function parseOptions(_opts, keys) {
-  if (_opts.sqs && _opts.SQSConfig) {
+  if (_opts.sqs && _opts.sqsConfig) {
     throw new Error('If you provide SQS client, don\'t provide SQS configuration');
   }
 
@@ -40,7 +40,7 @@ function parseOptions(_opts, keys) {
 
   // Create the SQS object if we don't have one but we want one.
   if (!opts.sqs && _.includes(keys, 'sqs')) {
-    opts.sqs = new SQS(opts.SQSConfig);
+    opts.sqs = new SQS(opts.sqsConfig);
   }
 
   // If provided, a QueueUrl must be a valid URL
