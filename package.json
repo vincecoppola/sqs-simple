@@ -5,8 +5,8 @@
   "main": "lib/sqs.js",
   "scripts": {
     "compile": "babel-compile -p taskcluster src:lib test:.test",
-    "prepublish": "npm run compile",
-    "pretest": "npm run compile",
+    "prepublish": "yarn run compile",
+    "pretest": "yarn run compile",
     "test": "mocha .test/*_test.js"
   },
   "repository": {
