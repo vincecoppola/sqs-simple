@@ -32,6 +32,8 @@ function parseOptions(_opts, keys) {
     maxNumberOfMessages: 1,
     deadLetterSuffix: '_dead',
     maxReceiveCount: 5,
+    encodeMessage: true,
+    decodeMessage: true,
     sqsConfig: {
       region: 'us-west-2',
       apiVersion: '2012-11-15',
@@ -42,6 +44,17 @@ function parseOptions(_opts, keys) {
   if (!opts.sqs && _.includes(keys, 'sqs')) {
     assert(opts.sqsConfig.region, 'Must provide SQS Region');
     opts.sqs = new SQS(opts.sqsConfig);
+  }
+
+  // Because lodash is weird, it assumes falsy values in a _.defaults means
+  // that it should not be set.
+  opts.decodeMessage = _opts.decodeMessage;
+  opts.encodeMessage = _opts.encodeMessage;
+  if (typeof opts.decodeMessage === 'undefined') {
+    opts.decodeMessage = true;
+  }
+  if (typeof opts.encodeMessage === 'undefined') {
+    opts.encodeMessage = true;
   }
 
   // If provided, a QueueUrl must be a valid URL
@@ -300,6 +313,7 @@ class QueueSender {
     let requiredOpts = [
       'sqs',
       'queueUrl',
+      'encodeMessage',
     ];
 
     // Figure them out
@@ -321,10 +335,17 @@ class QueueSender {
    */
   async insert(msg) {
     assert(typeof msg !== 'undefined');
+    let body;
+    if (this.encodeMessage) {
+      body = __encodeMsg(msg);
+    } else {
+      assert(typeof msg === 'string', 'msg body must be string');
+      body = msg;
+    }
 
     let result = await this.sqs.sendMessage({
       QueueUrl: this.queueUrl,
-      MessageBody: __encodeMsg(msg),
+      MessageBody: body,
     }).promise();
 
     this.debug('inserted message');
@@ -374,6 +395,7 @@ class QueueListener extends EventEmitter {
       'waitTimeSeconds',
       'maxNumberOfMessages',
       'handler',
+      'decodeMessage',
     ];
 
     // Figure them out
@@ -537,27 +559,31 @@ class QueueListener extends EventEmitter {
 
     // Parse the message.
     let body;
-    try {
-      body = __decodeMsg(msg.Body);
-    } catch (err) {
-      this.emit('error', err, 'payload');
-      // Let's pretty print some debugging information
-      let contentPreview = msg.Body;
-      // not perfect, but meh, i don't care
-      if (contentPreview.length > 100) {
-        contentPreview = contentPreview.slice(0, 97) + '...';
-      }
-      this.debug('message %s has malformed payload, deleting: %s', msgId, contentPreview);
-
-      // We now know that this message isn't valid on this instance of
-      // QueueListener.  Since we might have a mixed pool of listeners and
-      // another one might be able to understand this, let's mark the message
-      // as a failure and put it back into the queue.  This is mainly to
-      // support gradual upgrades
+    if (this.decodeMessage) {
       try {
-        await changeTimeout(0);
-      } catch(err) { }
-      return;
+        body = __decodeMsg(msg.Body);
+      } catch (err) {
+        this.emit('error', err, 'payload');
+        // Let's pretty print some debugging information
+        let contentPreview = msg.Body;
+        // not perfect, but meh, i don't care
+        if (contentPreview.length > 100) {
+          contentPreview = contentPreview.slice(0, 97) + '...';
+        }
+        this.debug('message %s has malformed payload, deleting: %s', msgId, contentPreview);
+
+        // We now know that this message isn't valid on this instance of
+        // QueueListener.  Since we might have a mixed pool of listeners and
+        // another one might be able to understand this, let's mark the message
+        // as a failure and put it back into the queue.  This is mainly to
+        // support gradual upgrades
+        try {
+          await changeTimeout(0);
+        } catch(err) { }
+        return;
+      }
+    } else {
+      body = msg.Body;
     }
 
     // Run the handler.  If the handler promise rejects, then we'll delete the
