@@ -26,7 +26,7 @@ function parseOptions(_opts, keys) {
     throw new Error('If you provide SQS client, don\'t provide SQS configuration');
   }
 
-  let opts = _.defaults({}, {
+  let opts = _.defaults({}, _opts, {
     visibilityTimeout: 30,
     waitTimeSeconds: 1,
     maxNumberOfMessages: 1,
@@ -38,7 +38,7 @@ function parseOptions(_opts, keys) {
       region: 'us-west-2',
       apiVersion: '2012-11-15',
     }
-  }, _opts);
+  });
 
   // Create the SQS object if we don't have one but we want one.
   if (!opts.sqs && _.includes(keys, 'sqs')) {
