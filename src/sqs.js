@@ -183,10 +183,19 @@ async function initQueue (opts) {
     AttributeNames: ['QueueArn'],
   }).promise()).Attributes.QueueArn;
 
+  // Now we'll create the queue
   let queueUrl = (await sqs.createQueue({
     QueueName: opts.queueName,
   }).promise()).QueueUrl;
 
+  // Now we'll find the queue's ARN
+  let queueArn = (await sqs.getQueueAttributes({
+    QueueUrl: queueUrl,
+    AttributeNames: ['QueueArn'],
+  }).promise()).Attributes.QueueArn;
+
+  // Set up the Queue's Redrive policy and Visibility timeout to make sure that
+  // messages which fail to process are sent to the dead letter queue
   await sqs.setQueueAttributes({
     QueueUrl: queueUrl,
     Attributes: {
@@ -202,7 +211,25 @@ async function initQueue (opts) {
 
   _debug('created queue %s', queueUrl);
 
-  return {queueUrl, deadQueueUrl};
+  return {queueUrl, queueArn, deadQueueUrl, deadQueueArn};
+}
+
+/**
+ * Given a queueName, determine the queueUrl and queueArn
+ */
+async function getQueueInfo(opts) {
+  opts = parseOptions(opts, ['sqs', 'queueName']);
+
+  let queueUrl = (await opts.sqs.getQueueUrl({
+    QueueName: opts.queueName,
+  }).promise()).QueueUrl;
+
+  let queueArn = (await opts.sqs.getQueueAttributes({
+    QueueUrl: queueUrl,
+    AttributeNames: ['QueueArn'],
+  }).promise()).Attributes.QueueArn;
+
+  return {queueUrl, queueArn};
 }
 
 /**
@@ -472,6 +499,8 @@ class QueueListener extends EventEmitter {
       }
       this.debug('received %d messages', msgs.length);
       msgs = msg.Messages;
+    } else {
+      this.debug('received 0 messages');
     }
 
     // We never want this to actually throw.  The __handleMsg function should
