@@ -1,6 +1,6 @@
 {
   "name": "sqs-simple",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A simple SQS library that works",
   "main": "lib/sqs.js",
   "scripts": {
