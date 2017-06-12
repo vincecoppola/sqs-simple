@@ -34,6 +34,7 @@ function parseOptions(_opts, keys) {
     maxReceiveCount: 5,
     encodeMessage: true,
     decodeMessage: true,
+    sequential: false,
     sqsConfig: {
       region: 'us-west-2',
       apiVersion: '2012-11-15',
@@ -423,6 +424,7 @@ class QueueListener extends EventEmitter {
       'maxNumberOfMessages',
       'handler',
       'decodeMessage',
+      'sequential',
     ];
 
     // Figure them out
@@ -506,7 +508,13 @@ class QueueListener extends EventEmitter {
     // We never want this to actually throw.  The __handleMsg function should
     // take care of emitting the error event
     try {
-      await Promise.all(msgs.map(x => this.__handleMsg(x)));
+      if (this.sequential) {
+        for (let msg of msgs) {
+          await this.__handleMsg(msg);
+        }
+      } else {
+        await Promise.all(msgs.map(x => this.__handleMsg(x)));
+      }
     } catch (err) {
       let error = new Error('__handleMsg is rejecting when it ought not to.  ' +
                     'This is a programming error in QueueListener.__handleMsg()');
