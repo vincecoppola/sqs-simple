@@ -35,6 +35,7 @@ function parseOptions(_opts, keys) {
     encodeMessage: true,
     decodeMessage: true,
     sequential: false,
+    delaySeconds: 0,
     sqsConfig: {
       region: 'us-west-2',
       apiVersion: '2012-11-15',
@@ -153,6 +154,7 @@ async function initQueue (opts) {
     'maxReceiveCount',
     'visibilityTimeout',
     'deadLetterSuffix',
+    'delaySeconds',
   ]);
 
   // Shorthand
@@ -202,6 +204,7 @@ async function initQueue (opts) {
     Attributes: {
       // Bug in AWS-Sdk? the receiveMessage VisibiltyTimeout accepts strings
       // but not here...
+      DelaySeconds: opts.delaySeconds.toString(),
       VisibilityTimeout: Number(opts.visibilityTimeout).toString(),
       RedrivePolicy: JSON.stringify({
         maxReceiveCount: opts.maxReceiveCount,
@@ -213,6 +216,31 @@ async function initQueue (opts) {
   _debug('created queue %s', queueUrl);
 
   return {queueUrl, queueArn, deadQueueUrl, deadQueueArn};
+}
+
+/**
+ * Given a queueName, return some basic statistics about that queue
+ */
+async function getQueueStats(opts) {
+  opts = parseOptions(opts, ['sqs', 'queueName']);
+
+  let stats = [
+    'ApproximateNumberOfMessages',
+    'ApproximateNumberOfMessagesDelayed',
+    'ApproximateNumberOfMessagesNotVisible',
+    'DelaySeconds',
+    'VisibilityTimeout',
+  ];
+
+  let queueUrl = (await opts.sqs.getQueueUrl({
+    QueueName: opts.queueName,
+  }).promise()).QueueUrl;
+
+  let result = await opts.sqs.getQueueAttributes({
+    QueueUrl: queueUrl,
+    AttributeNames: stats,
+  }).promise();
+  return result.Attributes;
 }
 
 /**
@@ -650,6 +678,7 @@ module.exports = {
   QueueListener,
   initQueue,
   getQueueUrl,
+  getQueueStats,
   purgeQueue,
   emptyQueue,
   deleteQueue,
