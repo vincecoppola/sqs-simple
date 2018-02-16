@@ -17,6 +17,17 @@ const assert = require('assert');
 
 const EventEmitter = require('events');
 
+function validateQueueName(queueName) {
+  if (queueName.length > 80 || !queueName.length) return false;
+  return SQS_QUEUE_NAME_PATTERN.test(queueName) || (
+    SQS_QUEUE_NAME_PATTERN.test(queueName.slice(0, -5)) && isFifoQueue(queueName)
+  );
+}
+
+function isFifoQueue(queueName) {
+  return queueName && queueName.slice(queueName.length - 5) === '.fifo';
+}
+
 /**
  * Parse out the options, sets defaults and allows
  * user to specify which options they expect
@@ -27,10 +38,10 @@ function parseOptions(_opts, keys) {
   }
 
   let opts = _.defaults({}, _opts, {
+    fifo: false,
     visibilityTimeout: 30,
     waitTimeSeconds: 1,
     maxNumberOfMessages: 1,
-    deadLetterSuffix: '_dead',
     maxReceiveCount: 5,
     encodeMessage: true,
     decodeMessage: true,
@@ -67,26 +78,15 @@ function parseOptions(_opts, keys) {
     }
   }
 
-  // If provided, QueueName should be valid as should the deadQueueUrl
+  // If provided, QueueName should be valid
   if (opts.queueName) {
-    if (!SQS_QUEUE_NAME_PATTERN.exec(opts.queueName)) {
+    if (opts.fifo && !isFifoQueue(opts.queueName)) {
+      opts.queueName = opts.queueName + '.fifo';
+    }
+    if (!validateQueueName(opts.queueName)) {
       throw new Error('Invalid Queue Name: ' + opts.queueName);
     }
   }
-
-  // If we're caring about a dead letter queue, let's validate it
-  if (_.includes(keys, 'deadQueueName')) {
-    let deadQueueName = opts.queueName + opts.deadLetterSuffix;
-
-    if (!opts.queueName) {
-      throw new Error('Dead Letter Queue needs a basis');
-    }
-
-    if (!SQS_QUEUE_NAME_PATTERN.exec(deadQueueName)) {
-      throw new Error('Invalid Dead-Letter Queue Name: ' + deadQueueName);
-    }
-  }
-
 
   if (opts.handler && _.includes(keys, 'handler') && typeof opts.handler !== 'function') {
     throw new Error('If provided, handler must be a promise-returning function');
@@ -137,10 +137,8 @@ function __decodeMsg (input) {
 }
 
 /**
- * Initialize a queue and a matching dead-letter queue.  This function will
- * automatically associate connect the dead-letter queue.  This function will
- * overwrite existing VisibiltyTimeout and RedrivePolicy attributes on the
- * queues if they already exist.
+ * Initialize a queue. This function will overwrite existing VisibiltyTimeout and
+ * RedrivePolicy attributes on the queues if they already exist.
  *
  * TODO: This function should check on error to see if the reason for the error
  * is the 60 between-delete-and-create api imposed limit is the error for
@@ -153,8 +151,8 @@ async function initQueue (opts) {
     'queueName',
     'maxReceiveCount',
     'visibilityTimeout',
-    'deadLetterSuffix',
     'delaySeconds',
+    'fifo',
   ]);
 
   // Shorthand
@@ -162,33 +160,26 @@ async function initQueue (opts) {
 
   const _debug = debug('queue:initQueue:' + opts.queueName);
 
-  let deadQueueName = opts.queueName + opts.deadLetterSuffix;
-
-  if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(opts.queueName)) {
+  if (!validateQueueName(opts.queueName)) {
     throw new Error('Invalid Queue Name: ' + opts.queueName);
   }
 
-  if (!/^[a-zA-Z0-9_-]{1,80}$/.exec(deadQueueName)) {
-    throw new Error('Invalid Dead-Letter Queue Name: ' + deadQueueName);
+  const Attributes = {
+    // Bug in AWS-Sdk? the receiveMessage VisibiltyTimeout accepts strings
+    // but not here...
+    DelaySeconds: opts.delaySeconds.toString(),
+    VisibilityTimeout: Number(opts.visibilityTimeout).toString(),
+  };
+
+  if (opts.fifo) {
+    Attributes.FifoQueue = 'true';
+    Attributes.ContentBasedDeduplication = 'true';
   }
-
-  // We need to create the dead letter queue first because we need to query the ARN
-  // of the queue so that we can set it when creating the main queue
-  let deadQueueUrl = (await sqs.createQueue({
-    QueueName: deadQueueName,
-  }).promise()).QueueUrl;
-
-  _debug('created dead letter queue %s', deadQueueUrl);
-
-  // Now we'll find the dead letter put queue's ARN
-  let deadQueueArn = (await sqs.getQueueAttributes({
-    QueueUrl: deadQueueUrl,
-    AttributeNames: ['QueueArn'],
-  }).promise()).Attributes.QueueArn;
 
   // Now we'll create the queue
   let queueUrl = (await sqs.createQueue({
     QueueName: opts.queueName,
+    Attributes,
   }).promise()).QueueUrl;
 
   // Now we'll find the queue's ARN
@@ -196,26 +187,10 @@ async function initQueue (opts) {
     QueueUrl: queueUrl,
     AttributeNames: ['QueueArn'],
   }).promise()).Attributes.QueueArn;
-
-  // Set up the Queue's Redrive policy and Visibility timeout to make sure that
-  // messages which fail to process are sent to the dead letter queue
-  await sqs.setQueueAttributes({
-    QueueUrl: queueUrl,
-    Attributes: {
-      // Bug in AWS-Sdk? the receiveMessage VisibiltyTimeout accepts strings
-      // but not here...
-      DelaySeconds: opts.delaySeconds.toString(),
-      VisibilityTimeout: Number(opts.visibilityTimeout).toString(),
-      RedrivePolicy: JSON.stringify({
-        maxReceiveCount: opts.maxReceiveCount,
-        deadLetterTargetArn: deadQueueArn,
-      }),
-    },
-  }).promise();
-
+  
   _debug('created queue %s', queueUrl);
 
-  return {queueUrl, queueArn, deadQueueUrl, deadQueueArn};
+  return {queueUrl, queueArn};
 }
 
 /**
@@ -370,6 +345,7 @@ class QueueSender {
       'sqs',
       'queueUrl',
       'encodeMessage',
+      'fifo',
     ];
 
     // Figure them out
@@ -399,10 +375,14 @@ class QueueSender {
       body = msg;
     }
 
-    let result = await this.sqs.sendMessage({
+    const message = {
       QueueUrl: this.queueUrl,
       MessageBody: body,
-    }).promise();
+    };
+
+    if (this.fifo) message.MessageGroupId = '1';
+    
+    let result = await this.sqs.sendMessage(message).promise();
 
     this.debug('inserted message');
 

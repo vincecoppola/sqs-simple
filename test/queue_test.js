@@ -80,24 +80,16 @@ describe('Queues', () => {
       // TODO: make this not suck
       qurl = {
         queueUrl: (process.env.TEST_QUEUE_URL || '').trim(),
-        deadQueueUrl: (process.env.TEST_QUEUE_URL || '').trim() + '_dead',
       };
       debug('NOTE: Skipping initQueue, assuming last Queue is still OK');
     } else {
-      // If we're using constant queue names, then we want to create the queue
-      // and wait 65 seconds.  This 65s wait is because the API seems to use
-      // 60s as sync timeout for the eventual consistency for queue operations
-      // like delete and I have a gut feeling that it does this for dead-letter
-      // queue redirecting as well.  Half of working against AWS Apis feels
-      // like trusting gut feelings about how it's not doing what you expect
-      // :'(
-      qurl = await subject.initQueue({sqs, queueName: qname});
-      debug('Waiting 65 seconds to allow the SQS API to catch up to itself');
+      qurl = await subject.initQueue({fifo: true, sqs, queueName: qname});
+      debug('Waiting 10 seconds to allow the SQS API to catch up to itself');
       return new Promise(res => {
         setTimeout(() => { 
           debug('OK, done waiting!');
           res();
-        }, 65 * 1000);
+        }, 10 * 1000);
       });
     }
   });
@@ -111,10 +103,6 @@ describe('Queues', () => {
         sqs: sqs,
         queueUrl: qurl.queueUrl,
       }),
-      subject.emptyQueue({
-        sqs: sqs,
-        queueUrl: qurl.deadQueueUrl,
-      }),
     ]);
   });
 
@@ -127,16 +115,12 @@ describe('Queues', () => {
           sqs: sqs,
           queueUrl: qurl.queueUrl
         }),
-        subject.deleteQueue({
-          sqs: sqs,
-          queueUrl: qurl.deadQueueUrl
-        }),
       ]);
     }
   });
 
   it('QueueSender should initialize and send a message', async () => {
-    let q = new subject.QueueSender({sqs, queueUrl: qurl.queueUrl});
+    let q = new subject.QueueSender({fifo: true, sqs, queueUrl: qurl.queueUrl});
     let msg = slugid.v4();
     debug('inserting %s', msg);
     await q.insert(msg);
@@ -144,6 +128,7 @@ describe('Queues', () => {
 
   it('QueueListener should initialize, start and stop with a handler', async () => {
     let listener = new subject.QueueListener({
+      fifo: true,
       queueUrl: qurl.queueUrl,
       sqs: sqs,
       handler: async x => {
@@ -174,6 +159,7 @@ describe('Queues', () => {
 
     return new Promise(async (res, rej) => {
       let listener = new subject.QueueListener({
+        fifo: true,
         queueUrl: qurl.queueUrl,
         sqs: sqs,
         handler: async x => {
@@ -185,7 +171,7 @@ describe('Queues', () => {
         },
       });
 
-      let sender = new subject.QueueSender({sqs, queueUrl: qurl.queueUrl});
+      let sender = new subject.QueueSender({fifo: true, sqs, queueUrl: qurl.queueUrl});
 
       listener.on('error', rej);
 
@@ -202,6 +188,7 @@ describe('Queues', () => {
 
     return new Promise(async (res, rej) => {
       let listener = new subject.QueueListener({
+        fifo: true,
         queueUrl: qurl.queueUrl,
         sqs: sqs,
         handler: async x => {
@@ -213,7 +200,7 @@ describe('Queues', () => {
         },
       });
 
-      let sender = new subject.QueueSender({sqs, queueUrl: qurl.queueUrl});
+      let sender = new subject.QueueSender({fifo: true, sqs, queueUrl: qurl.queueUrl});
 
       listener.on('error', function (err, errtype) {
         // For some reason, this function can't have more than a single line
@@ -229,56 +216,6 @@ describe('Queues', () => {
       listener.start();
 
       await sender.insert(msg);
-    });
-  });
-
-  it('should put things in the dead letter queue', async () => {
-    let msg = slugid.v4();
-    let errmsg = slugid.v4();
- 
-    return new Promise(async (res, rej) => {
-      let listener = new subject.QueueListener({
-        queueUrl: qurl.queueUrl,
-        sqs: sqs,
-        handler: async x => {
-          debug('received: %s', x);
-          if (x === msg) {
-            throw new Error(errmsg);
-          }
-        },
-      });
-
-      let sender = new subject.QueueSender({sqs, queueUrl: qurl.queueUrl});
-      
-      let dlListener = new subject.QueueListener({
-        queueUrl: qurl.queueUrl,
-        sqs: sqs,
-        handler: async x => {
-          debug('dlq-received: %s', x);
-          if (x === msg) {
-            listener.stop();
-            dlListener.stop();
-            res();
-          }
-        },
-      });
-
-      listener.on('error', (err, errtype) => {
-        if (errtype === 'handler' && err.message === errmsg) {
-          debug('ignoring %j', err);
-        } else {
-          rej(err);
-        }
-      });
-      dlListener.on('error', rej);
-
-      dlListener.start();
-      listener.start();
-
-      let insertOutcome = await sender.insert(msg);
-      debug('inserted: %s', insertOutcome.MessageId);
-
-      
     });
   });
 });

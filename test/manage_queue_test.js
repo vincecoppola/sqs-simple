@@ -6,7 +6,7 @@ const debug = require('debug')('queue-management');
 const slugid = require('slugid');
 
 describe('Management', () => {
-  it('should create and empty a live and dead queue', async () => {
+  it('should create and empty a live queue', async () => {
     let queueName
     if (process.env.CONSTANT_QUEUE_NAME) {
       queueName = 'queue-tests-mgmt-' + process.env.USER;
@@ -22,7 +22,6 @@ describe('Management', () => {
     debug('can get QueueUrl from QueueName');
 
     assume(result.queueUrl).matches("^https://sqs.us-west-2.amazonaws.com/[0-9]*/" + queueName + "$");
-    assume(result.deadQueueUrl).matches("^https://sqs.us-west-2.amazonaws.com/[0-9]*/" + queueName + "_dead$");
     debug('QueueUrls are correctly formed');
 
     await sqs.sendMessage({
@@ -49,11 +48,6 @@ describe('Management', () => {
       queueUrl: result.queueUrl,
     });
     debug('can delete queue');
-
-    await subject.deleteQueue({
-      sqs: sqs,
-      queueUrl: result.deadQueueUrl,
-    });
     debug('deleted other queue');
   });
 });
